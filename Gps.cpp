@@ -3,6 +3,12 @@
 #include "math.h"
 #include <Arduino.h>
 
+//#define SIMU
+
+#ifdef SIMU
+#include "nmea_dump.h"
+#endif
+
 char buff[128];
 MicroNMEA _nmea(buff, sizeof(buff));
   
@@ -19,11 +25,23 @@ void Gps::start() {
   long alt(0), spd(0), hdg(0), lat(0), lon(0);
   while(true) {
     delay(1);
+#ifndef SIMU
     if(Serial1.available()) {
       c = Serial1.read();
+#else
+    static int j = 0;
+    c = nmea_dump[j++];
+    delay(5);
+    if(strcmp(&c, "~")==0) {
+      j = 0;
+      continue;
+    }
+    {
+#endif
       //printf("%c", c);
       if (_nmea.process(c)) {
         if(_nmea.isValid()) {
+          //printf("valid sentence\n");
           _status = READY;
           _nmea.getAltitude(alt);
           spd = _nmea.getSpeed();

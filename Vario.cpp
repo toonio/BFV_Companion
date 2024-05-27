@@ -71,15 +71,25 @@ void Vario::processMessageLK8EX1(const std::string &msg) {
     Serial.write(data[3].c_str());
     Serial.write("cm/s\n");  */
 
-    DATA.setAltibaro(pressToAlti(std::stoi(data[1])/100.0)); // Pa to HPa (mbar)
-    DATA.setVSpeed(std::stoi(data[3])/100.0);
-    DATA.setVarioBattery(std::stof(data[5]));
-    DATA.setBTConnected(1);
+    if(data.size() > 5) {
+      //printf(msg.c_str());
+      float altiB = std::stoi(data[1])/100.0;
+      DATA.setAltibaro(pressToAlti(altiB)); // Pa to HPa (mbar)
+      //printf(data[3].c_str());printf("\n");
+      float vspeed = std::stof(data[3])/100.0;
+      DATA.setVSpeed(vspeed);
+      DATA.setVarioBattery(std::stof(data[5]));
+      DATA.setBTConnected(1);
+    }
+    else {
+      printf("unkown LK8EX1 size : %s\n", msg.c_str());
+    }
   }
 }
 
 float Vario::pressToAlti(float pressMb) {
   float alti = 145366.45 * (1-pow(pressMb/1013.25, 0.190284));
+  //printf("press: %f - alti: %f\n", pressMb, alti);
   return alti;
 }
 

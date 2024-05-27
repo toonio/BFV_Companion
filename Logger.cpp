@@ -69,7 +69,10 @@ void Logger::flightStarted() {
   printf("Flight started");
   _flying = true;
   // create  new file
-  _currentFilename = String("flight_") + DATA.year()+ "-" +DATA.month() + "-" +DATA.day()+"-"+DATA.hour()+"-"+DATA.minute()+".igc";
+  char filename[128];
+  sprintf(filename, "Flight-%02.0f-%02.0f-%02.0f_%02.0f-%02.0f-%02.0f.igc",DATA.year(), DATA.month(), DATA.day(), DATA.hour(), DATA.minute());
+  //_currentFilename = String("flight_") + DATA.year()+ "-" +DATA.month() + "-" +DATA.day()+"-"+DATA.hour()+"-"+DATA.minute()+".igc";
+  _currentFilename = filename;
   // write igc header
   File igcFile = SD.open(_igcFolder+"/"+_currentFilename, FILE_WRITE);
   if(igcFile) {
@@ -128,7 +131,7 @@ void Logger::addRecord() {
             hour, minute, second,
             latDegrees, latMinutes, latMinutesDec, latHemisphere,
             lonDegrees, lonMinutes, lonMinutesDec, lonHemisphere,
-            altitudeGPS, altitudeBaro);
+            altitudeBaro, altitudeGPS);
 
     // Write the fix record to the file
     igcFile.print(fixRecord);

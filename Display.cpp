@@ -3,6 +3,8 @@
 #include "Fonts/FreeMonoBold7pt7b.h"
 #include "math.h"
 #include "Arduino.h"
+#include <vector>
+#include <algorithm>
 
 Display::Display():io(SPI,  EPD_CS, EPD_DC,  EPD_RSET), display(io, EPD_RSET, EPD_BUSY)
 {
@@ -51,6 +53,7 @@ void Display::update() {
   drawAltitudeVal(DATA.altitude());
   drawHeadingVal(DATA.heading());
   drawUptime();
+  drawMap();
   
   display.updateWindow(0, 0, display.width(), display.height());
   display.powerDown();
@@ -59,7 +62,7 @@ void Display::update() {
 
 void Display::drawBluetooth(bool connected) {
   display.setFont(&FreeMonoBold7pt7b);
-  int x = 30;
+  int x = 20;
   int y = 0;
 
   // draw clear box
@@ -67,13 +70,13 @@ void Display::drawBluetooth(bool connected) {
   //display.drawRect(x, y, 10, 13, GxEPD_BLACK);
 
   int16_t tbx, tby; uint16_t tbw, tbh;
-  display.getTextBounds("AB", x, y, &tbx, &tby, &tbw, &tbh);
+  display.getTextBounds("ABR", x, y, &tbx, &tby, &tbw, &tbh);
   y = tbh;
 
   display.fillRect(tbx, tby, tbw, tbh, GxEPD_WHITE);
   display.setCursor(x, y);
   char text[10];
-  sprintf(text, "%s%s", DATA.antennaOK() ? "A" : " ", DATA.BTConnected() ? "B" : " ");
+  sprintf(text, "%s%s%s", DATA.antennaOK() ? "A" : " ", DATA.BTConnected() ? "B" : " ", DATA.flying() ? "R" : "");
   display.print(text);
 }
 
@@ -98,14 +101,14 @@ void Display::drawUptime() {
   int16_t tbx, tby; uint16_t tbw, tbh; // boundary box window
   int x = 20;
   int y = 245;
-  display.getTextBounds("00:00 R", x, y, &tbx, &tby, &tbw, &tbh);
+  display.getTextBounds("00:00", x, y, &tbx, &tby, &tbw, &tbh);
   display.fillRect(tbx, tby, tbw, tbh, GxEPD_WHITE);
   char text[10];
   uint32_t ms = millis() - DATA.flyingStartMS();
   int hours = ms / 1000.0 / 60.0 / 60.0;
   int minutes = (ms - (hours * 3600.0 * 1000)) / 1000.0 / 60.0;
 
-  sprintf(text, "%02d:%02d %s", hours, minutes, DATA.flying() ? "R" : "");
+  sprintf(text, "%02d:%02d", hours, minutes);
   display.setCursor(x, y);
   display.print(text);
 }
@@ -191,4 +194,55 @@ void Display::drawAltitudeVal(float value) {
 
 void Display::drawHeadingVal(float value) {
 
+}
+
+void Display::drawMap() {
+  int x = 65;
+  int y = 190;
+  int w = 55;
+  int h = 55;
+
+  display.fillRect(x, y, w, h, GxEPD_WHITE);
+  display.drawRect(x, y, w, h, GxEPD_BLACK);
+
+  std::vector<float> lats = DATA.getLats();
+  std::vector<float> lons = DATA.getLons();
+
+  if(lats.size() > 1) {
+    float minLat = *std::min_element(begin(lats), end(lats));
+    float maxLat = *std::max_element(begin(lats), end(lats));
+    float minLon = *std::min_element(begin(lons), end(lons));
+    float maxLon = *std::max_element(begin(lons), end(lons));
+    
+    float speed = max(DATA.hSpeed(), 5.0f);
+    double offset = (speed * 5) / 111320.0; //m to dega
+    minLat = lats[0] - offset;
+    maxLat = lats[0] + offset;
+    minLon = lons[0] - (offset / cos(lats[0] * 0.01745));
+    maxLon = lons[0] + (offset / cos(lats[0] * 0.01745));
+    float delta = max(maxLat-minLat, maxLon-minLon);
+
+    if(maxLat - minLat != 0) {
+      //printf("#pos : %d\n", lats.size());
+      for(int i = 0; i < lats.size()-1; i++) {
+        float lat = max(min(lats[i], maxLat), minLat); //lats[i]; //
+        float lon = max(min(lons[i], maxLon), minLon); //lons[i]; //
+        int yPt = h - ((lat - minLat) / (maxLat-minLat) * h);
+        int xPt = (lon - minLon) / (maxLon-minLon) * w;
+        lat = max(min(lats[i+1], maxLat), minLat); //lats[i+1];//
+        lon = max(min(lons[i+1], maxLon), minLon); //lons[i+1];//
+        int yPt2 = h - ((lat - minLat) / (maxLat-minLat) * h);
+        int xPt2 = (lon - minLon) / (maxLon-minLon) * w;
+        if(i == 0) { // most current pos
+          display.fillCircle(x + xPt, y + yPt, 3, GxEPD_BLACK);
+        }
+        //display.drawPixel(x + xPt, y + yPt, GxEPD_BLACK);
+        display.drawLine(x + xPt, y + yPt, x + xPt2, y + yPt2, GxEPD_BLACK);
+        //printf("(%d, %d) (%d, %d)\n)", x + xPt, y + yPt, x + xPt2, y + yPt2 );
+      }
+    }
+    else {
+      display.drawPixel(x+(w/2), y+(h/2), GxEPD_BLACK);
+    }
+  }
 }

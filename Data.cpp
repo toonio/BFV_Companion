@@ -1,9 +1,12 @@
 #include "Data.h"
 
+#define POS_QUEUE_SIZE 1000
+
 Data * Data::_instance = nullptr;
 
 Data::Data() {
   _mutex = xSemaphoreCreateMutex();
+  _posmutex = xSemaphoreCreateMutex();
   _battery = 0;
   _varioBattery = 0;
   _vSpeed = 0;
@@ -21,7 +24,10 @@ Data::Data() {
   _flying = 0;
   _flyingStartMS = 0;
   _antennaOK = 0;
+  _altibaro = 0;
   _BTConnected = 0;
+  _nbGPSFix = 0;
+  _deltaGPS = 0;
 }
 
 Data & Data::instance() {
@@ -62,4 +68,38 @@ void Data::setWithMutex(int *data, int value) {
     *data = value;
     xSemaphoreGive(_mutex);
   }
+}
+
+void Data::pushLat(float value) {
+  if(xSemaphoreTake(_posmutex, 10)) {
+    _lats.insert(_lats.begin(), value);
+    if(_lats.size() > POS_QUEUE_SIZE) _lats.pop_back();
+    xSemaphoreGive(_posmutex);
+  }
+}
+
+void Data::pushLon(float value) {
+  if(xSemaphoreTake(_posmutex, 10)) {
+    _lons.insert(_lons.begin(), value);
+    if(_lons.size() > POS_QUEUE_SIZE) _lons.pop_back();
+    xSemaphoreGive(_posmutex);
+  }
+}
+
+std::vector<float> Data::getLats() {
+  if(xSemaphoreTake(_posmutex, 10)) {
+    std::vector<float> cpy = _lats;
+    xSemaphoreGive(_posmutex);
+    return cpy;
+  }
+  return std::vector<float>();
+}
+
+std::vector<float> Data::getLons() {
+  if(xSemaphoreTake(_posmutex, 10)) {
+    std::vector<float> cpy = _lons;
+    xSemaphoreGive(_posmutex);
+    return cpy;
+  }
+  return std::vector<float>();
 }

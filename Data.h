@@ -1,5 +1,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include <vector>
 
 
 #define DATA Data::instance()
@@ -29,10 +30,17 @@ class Data {
     void setFlightStartTime(float x) { setWithMutex(&_flightStartTime, x); }
 
     float altitude() { return getWithMutex(&_altitude); }
-    void setAltitude(float x) { setWithMutex(&_altitude, x); }
+    void setAltitude(float x) { setWithMutex(&_altitude, x); _nbGPSFix++; }
 
     float altibaro() { return getWithMutex(&_altibaro); }
-    void setAltibaro(float x) { setWithMutex(&_altibaro, x); }
+    void setAltibaro(float x) { 
+      if(_nbGPSFix >= 5 && _deltaGPS == 0 && _altibaro != 0) {
+        _deltaGPS = _altibaro - _altitude;
+      }
+      x -= _deltaGPS;
+      //printf("Altibaro : %f\n", x);
+      setWithMutex(&_altibaro, x);
+    }
     
     float hour() { return getWithMutex(&_hour); }
     void setHour(float x) { setWithMutex(&_hour, x); }
@@ -44,10 +52,10 @@ class Data {
     void setSecond(float x) { setWithMutex(&_second, x); }
 
     float latitude() { return getWithMutex(&_latitude); }
-    void setLatitude(float x) { setWithMutex(&_latitude, x); }
+    void setLatitude(float x) { setWithMutex(&_latitude, x); pushLat(x); }
 
     float longitude() { return getWithMutex(&_longitude); }
-    void setLongitude(float x) { setWithMutex(&_longitude, x); }
+    void setLongitude(float x) { setWithMutex(&_longitude, x); pushLon(x);}
 
     int day() { return getWithMutex(&_day); }
     void setDay(int x) { setWithMutex(&_day, x); }
@@ -70,6 +78,8 @@ class Data {
     int BTConnected() { return getWithMutex(&_BTConnected); }
     void setBTConnected(int x) { setWithMutex(&_BTConnected, x); }
 
+    std::vector<float> getLats();
+    std::vector<float> getLons();
   
   private:
     float _battery;
@@ -92,6 +102,11 @@ class Data {
     int _flyingStartMS;
     int _antennaOK;
     int _BTConnected;
+    int _nbGPSFix;
+    float _deltaGPS;
+
+    std::vector<float> _lats;
+    std::vector<float> _lons;
     
     Data();
     static Data * _instance;
@@ -101,6 +116,10 @@ class Data {
     int getWithMutex(int *data);
     void setWithMutex(int *data, int value);
 
+    void pushLat(float lat);
+    void pushLon(float lat);
+
     SemaphoreHandle_t _mutex;
+    SemaphoreHandle_t _posmutex;
     
 };

@@ -34,4 +34,5 @@ class Display {
     void drawHeadingVal(float value);
     void drawTime();
     void drawUptime();
+    void drawMap();
 };

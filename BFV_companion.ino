@@ -82,7 +82,7 @@ void taskVario( void * pvParameters )
     display.clear();
     while(true) {
       display.update();
-      //delay(1000);
+      delay(1);
     }
  }
 
